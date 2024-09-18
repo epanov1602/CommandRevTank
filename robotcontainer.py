@@ -11,6 +11,8 @@ from commands2 import InstantCommand, RunCommand
 from commands2.button import JoystickButton
 
 from subsystems.driveSubsystem import DriveSubsystem
+from commands.arcadedrive import ArcadeDrive
+
 import constants
 
 
@@ -34,17 +36,24 @@ class RobotContainer:
 
         # Configure default subsystems
         # Set the default drive command to split-stick arcade drive
-        self.robotDrive.setDefaultCommand(
-            # A split-stick arcade command, with forward/backward controlled by the left
-            # hand, and turning controlled by the right.
-            RunCommand(
-                lambda: self.robotDrive.arcadeDrive(
-                    -self.driverController.getLeftY(),
-                    -self.driverController.getLeftX(),
-                ),
-                self.robotDrive,
-            )
-        )
+        self.robotDrive.setDefaultCommand(ArcadeDrive(
+            self.robotDrive,
+            lambda: -self.driverController.getLeftY(),
+            lambda: -self.driverController.getLeftX(),
+        ))
+
+        # Another way to do it would be:
+        #self.robotDrive.setDefaultCommand(
+        #    # A split-stick arcade command, with forward/backward controlled by the left
+        #    # hand, and turning controlled by the right.
+        #    RunCommand(
+        #        lambda: self.robotDrive.arcadeDrive(
+        #            -self.driverController.getLeftY(),
+        #            -self.driverController.getLeftX(),
+        #        ),
+        #        self.robotDrive,
+        #    )
+        #)
 
     def configureButtons(self):
         """
