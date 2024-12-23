@@ -124,6 +124,7 @@ class DriveSubsystem(Subsystem):
 
     def resetOdometry(self, pose):
         """Resets the odometry to the specified pose."""
+        self.gyro.reset()
         self.odometry.resetPosition(
             self.gyro.getRotation2d(),
             self.leftEncoder.getPosition() * constants.kLeftEncoderSign,
