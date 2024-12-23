@@ -11,6 +11,7 @@ from wpilib.drive import DifferentialDrive
 from wpilib import SmartDashboard
 
 from wpimath.kinematics import DifferentialDriveOdometry, DifferentialDriveWheelSpeeds
+from wpimath.geometry import Rotation2d, Pose2d, Translation2d
 
 import constants
 import navx
@@ -129,6 +130,9 @@ class DriveSubsystem(Subsystem):
             self.rightEncoder.getPosition() * constants.kRightEncoderSign,
             pose,
         )
+
+    def drive(self, xSpeed, ySpeed, rot, fieldRelative, rateLimit) -> None:
+        assert False, "ERROR: swerve drive not available on this drivetrain"
 
     def arcadeDrive(self, fwd, rot, assumeManualInput=False):
         """Drives the robot using arcade controls."""
