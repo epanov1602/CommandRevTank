@@ -180,7 +180,7 @@ class DriveSubsystem(Subsystem):
 
     def getHeading(self):
         """Returns the heading of the robot."""
-        return self.gyro.getRotation2d().degrees()
+        return self.getPose().rotation()
 
     def getTurnRate(self):
         """Returns the turn rate of the robot."""
