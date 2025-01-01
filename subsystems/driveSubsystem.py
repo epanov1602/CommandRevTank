@@ -8,7 +8,7 @@ from commands2 import Subsystem
 
 from wpilib import MotorControllerGroup, ADXRS450_Gyro
 from wpilib.drive import DifferentialDrive
-from wpilib import SmartDashboard
+from wpilib import SmartDashboard, Field2d
 
 from wpimath.kinematics import DifferentialDriveOdometry, DifferentialDriveWheelSpeeds
 from wpimath.geometry import Rotation2d, Pose2d, Translation2d
@@ -85,6 +85,9 @@ class DriveSubsystem(Subsystem):
         self.odometryHeadingOffset = Rotation2d(0)
         self.resetOdometry(Pose2d(0, 0, 0))
 
+        self.field = Field2d()
+        SmartDashboard.putData("Field", self.field)
+
         SmartDashboard.setDefaultNumber("driveKPMult", 0.5)
         SmartDashboard.setDefaultNumber("driveKDMult", 0.5)
         SmartDashboard.setDefaultNumber("driveKFFMult", 1.0)
@@ -103,16 +106,16 @@ class DriveSubsystem(Subsystem):
 
     def periodic(self):
         # Update the odometry in the periodic block
-        self.odometry.update(
+        pose = self.odometry.update(
             self.gyro.getRotation2d(),
             self.leftEncoder.getPosition() * constants.kLeftEncoderSign,
             self.rightEncoder.getPosition() * constants.kRightEncoderSign,
         )
         # Update the pose of the robot (x, y, heading) on the SmartDashboard
-        pose = self.getPose()
         SmartDashboard.putNumber("x", pose.x)
         SmartDashboard.putNumber("y", pose.y)
         SmartDashboard.putNumber("heading", pose.rotation().degrees())
+        self.field.setRobotPose(pose)
 
     def getPose(self):
         """Returns the currently-estimated pose of the robot."""
