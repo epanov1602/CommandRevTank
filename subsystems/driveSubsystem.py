@@ -82,6 +82,8 @@ class DriveSubsystem(Subsystem):
             self.leftEncoder.getPosition() * constants.kLeftEncoderSign,
             self.rightEncoder.getPosition() * constants.kRightEncoderSign,
         )
+        self.odometryHeadingOffset = Rotation2d(0)
+        self.resetOdometry(Pose2d(0, 0, 0))
 
         SmartDashboard.setDefaultNumber("driveKPMult", 0.5)
         SmartDashboard.setDefaultNumber("driveKDMult", 0.5)
@@ -130,6 +132,21 @@ class DriveSubsystem(Subsystem):
             self.leftEncoder.getPosition() * constants.kLeftEncoderSign,
             self.rightEncoder.getPosition() * constants.kRightEncoderSign,
             pose,
+        )
+        self.odometryHeadingOffset = self.odometry.getPose().rotation() - self.getGyroHeading()
+
+    def adjustOdometry(self, dTrans: Translation2d, dRot: Rotation2d):
+        pose = self.getPose()
+        newPose = Pose2d(pose.translation() + dTrans, pose.rotation() + dRot)
+        self.odometry.resetPosition(
+            pose.rotation() - self.odometryHeadingOffset,
+            (
+                self.frontLeft.getPosition(),
+                self.frontRight.getPosition(),
+                self.rearLeft.getPosition(),
+                self.rearRight.getPosition(),
+            ),
+            newPose,
         )
 
     def drive(self, xSpeed, ySpeed, rot, fieldRelative, rateLimit) -> None:
