@@ -4,14 +4,20 @@
 # the WPILib BSD license file in the root directory of this project.
 #
 
+from __future__ import annotations
+import typing
+
 from wpilib import XboxController
 from wpimath.geometry import Pose2d
+import wpilib
 
-from commands2 import InstantCommand, RunCommand
+from commands2 import InstantCommand, RunCommand, Command
 from commands2.button import JoystickButton
+import commands2
 
 from subsystems.driveSubsystem import DriveSubsystem
 from commands.arcadedrive import ArcadeDrive
+from commands.reset_xy import ResetXY
 
 import constants
 
@@ -64,12 +70,48 @@ class RobotContainer:
 
         # example 1: reset odometry when the "left bumper" is clicked
         leftBumper = JoystickButton(self.driverController, XboxController.Button.kLeftBumper)
-        leftBumper.onTrue(InstantCommand(lambda: self.robotDrive.resetOdometry(Pose2d(0.0, 0.0, 0.0))))
+        leftBumper.onTrue(ResetXY(0.0, 0.0, 0.0, drivetrain=self.robotDrive))
 
         # example 2: drive at half speed when the "right bumper" button is held
         rightBumper = JoystickButton(self.driverController, XboxController.Button.kRightBumper)
         rightBumper.onTrue(InstantCommand(lambda: self.robotDrive.setMaxOutput(0.5)))
         rightBumper.onFalse(InstantCommand(lambda: self.robotDrive.setMaxOutput(1)))
 
-    def getAutonomousCommand(self):
-        """Use this to pass the autonomous command to the main {@link Robot} class."""
+
+    def getAutonomousCommand(self) -> commands2.Command:
+        """
+        :returns: the command to run in autonomous
+        """
+        command = self.chosenAuto.getSelected()
+        return command
+
+    def configureAutos(self):
+        self.chosenAuto = wpilib.SendableChooser()
+        # you can also set the default option, if needed
+        # self.chosenAuto.setDefaultOption("two trajectories", self.getAutonomousCommandTwoTrajectories())
+        self.chosenAuto.setDefaultOption("trajectory example", self.getAutonomousTrajectoryExample())
+        self.chosenAuto.addOption("left blue", self.getAutonomousLeftBlue())
+        self.chosenAuto.addOption("left red", self.getAutonomousLeftRed())
+        wpilib.SmartDashboard.putData("Chosen Auto", self.chosenAuto)
+
+    def getAutonomousLeftBlue(self):
+        setStartPose = ResetXY(x=0.783, y=6.686, headingDegrees=+60, drivetrain=self.robotDrive)
+        driveForward = commands2.RunCommand(lambda: self.robotDrive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robotDrive)
+        stop = commands2.InstantCommand(lambda: self.robotDrive.arcadeDrive(0, 0))
+
+        command = setStartPose.andThen(driveForward.withTimeout(1.0)).andThen(stop)
+        return command
+
+    def getAutonomousLeftRed(self):
+        setStartPose = ResetXY(x=15.777, y=4.431, headingDegrees=-120, drivetrain=self.robotDrive)
+        driveForward = commands2.RunCommand(lambda: self.robotDrive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robotDrive)
+        stop = commands2.InstantCommand(lambda: self.robotDrive.arcadeDrive(0, 0))
+
+        command = setStartPose.andThen(driveForward.withTimeout(2.0)).andThen(stop)
+        return command
+
+    def getTestCommand(self) -> typing.Optional[commands2.Command]:
+        """
+        :returns: the command to run in test mode (to exercise all systems)
+        """
+        return None

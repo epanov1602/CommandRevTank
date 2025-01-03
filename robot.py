@@ -61,6 +61,11 @@ class MyRobot(commands2.TimedCommandRobot):
     def testInit(self) -> None:
         # Cancels all running subsystems at the start of test mode
         commands2.CommandScheduler.getInstance().cancelAll()
+        self.testCommand = self.robotContainer.getTestCommand()
+
+        # schedule the autonomous command (example)
+        if self.testCommand:
+            self.testCommand.schedule()
 
     def testPeriodic(self) -> None:
         """This function is called periodically during test mode"""
