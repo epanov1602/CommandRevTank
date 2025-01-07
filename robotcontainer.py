@@ -43,9 +43,9 @@ class RobotContainer:
         # Configure default subsystems
         # Set the default drive command to split-stick arcade drive
         self.robotDrive.setDefaultCommand(ArcadeDrive(
-            self.robotDrive,
             lambda: -self.driverController.getLeftY(),
             lambda: -self.driverController.getLeftX(),
+            self.robotDrive,
         ))
 
         # Another way to do it would be:

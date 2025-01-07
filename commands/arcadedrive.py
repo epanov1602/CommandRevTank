@@ -4,6 +4,8 @@
 # the WPILib BSD license file in the root directory of this project.
 #
 
+from __future__ import annotations
+
 import typing
 import commands2
 from subsystems.driveSubsystem import DriveSubsystem
@@ -12,24 +14,42 @@ from subsystems.driveSubsystem import DriveSubsystem
 class ArcadeDrive(commands2.Command):
     def __init__(
         self,
+        driveSpeed: typing.Callable[[], float] | float,
+        rotationSpeed: typing.Callable[[], float] | float,
         drivetrain: DriveSubsystem,
-        forward: typing.Callable[[], float],
-        rotation: typing.Callable[[], float],
+        assumeManualInput=False,
     ) -> None:
         """Creates a new ArcadeDrive. This command will drive your robot according to the speed supplier
         lambdas. This command does not terminate.
 
         :param drivetrain:  The drivetrain subsystem on which this command will run
-        :param forward:     Callable supplier of forward/backward speed
-        :param rotation:    Callable supplier of rotational speed
+        :param driveSpeed:     Callable supplier of forward/backward speed
+        :param rotationSpeed:    Callable supplier of rotational speed
         """
         super().__init__()
 
-        self.drive = drivetrain
-        self.forward = forward
-        self.rotation = rotation
+        self.driveSpeed = driveSpeed
+        if not callable(driveSpeed):
+            self.driveSpeed = lambda: driveSpeed
 
-        self.addRequirements(self.drive)
+        self.rotationSpeed = rotationSpeed
+        if not callable(rotationSpeed):
+            self.rotationSpeed = lambda: rotationSpeed
 
-    def execute(self) -> None:
-        self.drive.arcadeDrive(self.forward(), self.rotation(), assumeManualInput=True)
+        self.assumeManualInput = assumeManualInput
+        self.drivetrain = drivetrain
+        self.addRequirements(drivetrain)
+
+    def initialize(self):
+        pass
+
+    def isFinished(self) -> bool:
+        return False  # never finishes, you should use it with "withTimeout(...)"
+
+    def execute(self):
+        driveSpeed = self.driveSpeed()  # get the drive speed from the joystick or wherever it comes from
+        rotationSpeed = self.rotationSpeed()  # get the turn speed from the joystick or wherever it comes from
+        self.drivetrain.arcadeDrive(driveSpeed, rotationSpeed, assumeManualInput=self.assumeManualInput)
+
+    def end(self, interrupted: bool):
+        self.drivetrain.arcadeDrive(0, 0)  # stop at the end
