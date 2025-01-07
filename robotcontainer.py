@@ -39,6 +39,7 @@ class RobotContainer:
 
         # Configure the button bindings
         self.configureButtons()
+        self.configureAutos()
 
         # Configure default subsystems
         # Set the default drive command to split-stick arcade drive
