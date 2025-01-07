@@ -46,6 +46,7 @@ class RobotContainer:
             lambda: -self.driverController.getLeftY(),
             lambda: -self.driverController.getLeftX(),
             self.robotDrive,
+            assumeManualInput=True,
         ))
 
         # Another way to do it would be:
