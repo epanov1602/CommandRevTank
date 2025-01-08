@@ -37,3 +37,7 @@ kWheelDiameterMeters = 0.15
 
 # Please calibrate to your robot
 kEncoderPositionConversionFactor = 0.7
+
+
+class AutoConstants:
+    kUseSqrtControl = True  # compatibility with commands from https://github.com/epanov1602/CommandRevSwerve/blob/main/docs/Command_Driving_Aiming.md
