@@ -29,30 +29,48 @@ class DrivetrainConstants:
 
 class DriveSubsystem(Subsystem):
     # noinspection PyInterpreter
-    def __init__(self, usePIDController=True):
+    def __init__(self,
+                 usePIDController=True,
+                 l1MotorInverted=False,
+                 l2MotorInverted=False,
+                 r1MotorInverted=False,
+                 r2MotorInverted=False
+    ):
         super().__init__()
 
         # The motors on the left side of the drive.
-        self.motorL1 = rev.CANSparkMax(constants.kLeftMotor1CAN, rev.CANSparkMax.MotorType.kBrushless)
-        self.motorL2 = rev.CANSparkMax(constants.kLeftMotor2CAN, rev.CANSparkMax.MotorType.kBrushless)
-        self.motorL1.setInverted(False)  # TODO: this may or may not need to be inverted in your case -- test!
-        self.motorL2.setInverted(False)  # TODO: this may or may not need to be inverted in your case -- test!
+        self.motorL1 = rev.SparkMax(constants.kLeftMotor1CAN, rev.SparkMax.MotorType.kBrushless)
+        self.motorL1.configure(
+            _getLeadMotorConfig(l1MotorInverted, constants.kEncoderPositionConversionFactor),
+            rev.SparkBase.ResetMode.kResetSafeParameters,
+            rev.SparkBase.PersistMode.kPersistParameters)
+
+        self.motorL2 = rev.SparkMax(constants.kLeftMotor2CAN, rev.SparkMax.MotorType.kBrushless)
+        self.motorL2.configure(
+            _getFollowMotorConfig(constants.kLeftMotor1CAN, l2MotorInverted != l1MotorInverted),
+            rev.SparkBase.ResetMode.kResetSafeParameters,
+            rev.SparkBase.PersistMode.kPersistParameters)
 
         # The motors on the right side of the drive.
-        self.motorR1 = rev.CANSparkMax(constants.kRightMotor1CAN, rev.CANSparkMax.MotorType.kBrushless)
-        self.motorR2 = rev.CANSparkMax(constants.kRightMotor2CAN, rev.CANSparkMax.MotorType.kBrushless)
-        self.motorR1.setInverted(False)  # TODO: this may or may not need to be inverted in your case -- test!
-        self.motorR2.setInverted(False)  # TODO: this may or may not need to be inverted in your case -- test!
+        self.motorR1 = rev.SparkMax(constants.kRightMotor1CAN, rev.SparkMax.MotorType.kBrushless)
+        self.motorR1.configure(
+            _getLeadMotorConfig(r1MotorInverted, constants.kEncoderPositionConversionFactor),
+            rev.SparkBase.ResetMode.kResetSafeParameters,
+            rev.SparkBase.PersistMode.kPersistParameters)
+
+        self.motorR2 = rev.SparkMax(constants.kRightMotor2CAN, rev.SparkMax.MotorType.kBrushless)
+        self.motorR2.configure(
+            _getFollowMotorConfig(constants.kRightMotor1CAN, r2MotorInverted != r1MotorInverted),
+            rev.SparkBase.ResetMode.kResetSafeParameters,
+            rev.SparkBase.PersistMode.kPersistParameters)
 
         if usePIDController:
             # do not use basic differential drive, take advantage of low-level PID control from Rev
             self.drive = None
             self.leftMotors = None
             self.rightMotors = None
-            self.leftPIDController = self.motorL1.getPIDController()
-            self.rightPIDController = self.motorR1.getPIDController()
-            self.motorL2.follow(self.motorL1, invert=False)  # TODO: this may or may not need to be inverted in your case -- test!
-            self.motorR2.follow(self.motorR1, invert=False)  # TODO: this may or may not need to be inverted in your case -- test!
+            self.leftPIDController = self.motorL1.getClosedLoopController()
+            self.rightPIDController = self.motorR1.getClosedLoopController()
         else:
             # use the basic differential drive (robot will be less responsive and slower)
             # We need to invert one side of the drivetrain so that positive voltages
@@ -61,7 +79,7 @@ class DriveSubsystem(Subsystem):
             self.leftMotors = MotorControllerGroup(self.motorL1, self.motorL2)
             self.rightMotors = MotorControllerGroup(self.motorR1, self.motorR2)
             self.rightMotors.setInverted(True)
-            self.drive = DifferentialDrive(self.leftMotors, self.rightMotors)
+            self.drive = DifferentialDrive(self.motorL1, self.motorR1)
 
         # The left-side drive encoder
         self.leftEncoder = self.motorL1.getEncoder()
@@ -72,10 +90,6 @@ class DriveSubsystem(Subsystem):
         # The gyro sensor
         self.gyro = navx.AHRS.create_spi()
         sleep(1.0)  # wait until gyro recalibrates, this takes 1s
-
-        # Sets the distance per pulse for the encoders
-        self.leftEncoder.setPositionConversionFactor(constants.kEncoderPositionConversionFactor)
-        self.rightEncoder.setPositionConversionFactor(constants.kEncoderPositionConversionFactor)
 
         self.odometry = DifferentialDriveOdometry(
             self.gyro.getRotation2d(),
@@ -93,16 +107,13 @@ class DriveSubsystem(Subsystem):
         SmartDashboard.setDefaultNumber("driveKFFMult", 1.0)
         SmartDashboard.setDefaultNumber("driveMaxSpeedMult", 1.0)
         SmartDashboard.setDefaultNumber("driveMaxAccMult", 1.0)
-        self._setupMotorConfigs()
 
     def stop(self):
         if self.drive:
             self.drive.stopMotor()
         else:
-            self.leftPIDController.setReference(0, rev.CANSparkBase.ControlType.kVelocity)
-            self.rightPIDController.setReference(0, rev.CANSparkBase.ControlType.kVelocity)
-            self._setupMotorConfigs()
-
+            self.leftPIDController.setReference(0, rev.SparkBase.ControlType.kVelocity)
+            self.rightPIDController.setReference(0, rev.SparkBase.ControlType.kVelocity)
 
     def periodic(self):
         # Update the odometry in the periodic block
@@ -143,12 +154,8 @@ class DriveSubsystem(Subsystem):
         newPose = Pose2d(pose.translation() + dTrans, pose.rotation() + dRot)
         self.odometry.resetPosition(
             pose.rotation() - self.odometryHeadingOffset,
-            (
-                self.frontLeft.getPosition(),
-                self.frontRight.getPosition(),
-                self.rearLeft.getPosition(),
-                self.rearRight.getPosition(),
-            ),
+            self.leftEncoder.getPosition() * constants.kLeftEncoderSign,
+            self.rightEncoder.getPosition() * constants.kRightEncoderSign,
             newPose,
         )
 
@@ -181,8 +188,8 @@ class DriveSubsystem(Subsystem):
                 fwd = -speedLimit
             right = (fwd + rot) * DrivetrainConstants.maxRPM
             left = (fwd - rot) * DrivetrainConstants.maxRPM
-            self.leftPIDController.setReference(left, rev.CANSparkBase.ControlType.kVelocity)
-            self.rightPIDController.setReference(right, rev.CANSparkBase.ControlType.kVelocity)
+            self.leftPIDController.setReference(left, rev.SparkBase.ControlType.kVelocity)
+            self.rightPIDController.setReference(right, rev.SparkBase.ControlType.kVelocity)
 
     def getAverageEncoderDistance(self):
         """Gets the average distance of the two encoders."""
@@ -202,34 +209,34 @@ class DriveSubsystem(Subsystem):
         """Returns the heading of the robot."""
         return self.getPose().rotation()
 
+    def getGyroHeading(self):
+        """Returns the heading of the robot."""
+        return self.gyro.getRotation2d()
+
+
     def getTurnRate(self):
         """Returns the turn rate of the robot."""
         return -self.gyro.getRate()
 
-    def _setupMotorConfigs(self):
-        if self.drive is not None:
-            return  # self.drive is responsible for this
-        # otherwise, we are controlling individual motors using PID
-        self.motorL1.setIdleMode(rev.CANSparkBase.IdleMode.kBrake)
-        self.motorL2.setIdleMode(rev.CANSparkBase.IdleMode.kBrake)
-        self.motorR1.setIdleMode(rev.CANSparkBase.IdleMode.kBrake)
-        self.motorR2.setIdleMode(rev.CANSparkBase.IdleMode.kBrake)
-        self._setupMotorConfig(self.leftPIDController)
-        self._setupMotorConfig(self.rightPIDController)
 
-    def _setupMotorConfig(self, pidController):
-        # set PID coefficients
-        kFFMult = SmartDashboard.getNumber("driveKFFMult", 1.0)
-        kDMult = SmartDashboard.getNumber("driveKDMult", 0.5)
-        kPMult = SmartDashboard.getNumber("driveKPMult", 0.5)
-        if kPMult < 0:
-            kPMult = 0  # safety
-        if kPMult > 4:
-            kPMult = 4  # safety
+def _getFollowMotorConfig(leadCanID, inverted):
+    config = rev.SparkBaseConfig()
+    config.follow(leadCanID, inverted)
+    return config
 
-        pidController.setP(kPMult * DrivetrainConstants.initialP)
-        pidController.setD(kDMult * DrivetrainConstants.initialD)
-        pidController.setFF(kFFMult * DrivetrainConstants.initialFF)
-        pidController.setIZone(0)
-        pidController.setI(0)
-        pidController.setOutputRange(-1, +1)
+
+def _getLeadMotorConfig(
+    inverted: bool,
+    positionFactor: float,
+) -> rev.SparkBaseConfig:
+    config = rev.SparkBaseConfig()
+    config.inverted(inverted)
+    config.setIdleMode(rev.SparkBaseConfig.IdleMode.kBrake)
+    config.limitSwitch.forwardLimitSwitchEnabled(False)
+    config.limitSwitch.reverseLimitSwitchEnabled(False)
+    config.encoder.positionConversionFactor(positionFactor)
+    #config.encoder.velocityConversionFactor(positionFactor / 60)  # 60 seconds per minute
+    config.closedLoop.pid(DrivetrainConstants.initialP, 0.0, DrivetrainConstants.initialD)
+    config.closedLoop.velocityFF(DrivetrainConstants.initialFF)
+    config.closedLoop.outputRange(-1, +1)
+    return config
