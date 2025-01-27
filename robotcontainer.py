@@ -90,14 +90,13 @@ class RobotContainer:
     def configureAutos(self):
         self.chosenAuto = wpilib.SendableChooser()
         # you can also set the default option, if needed
-        self.chosenAuto.setDefaultOption("trajectory example", self.getAutonomousTrajectoryExample)
-        self.chosenAuto.addOption("left blue", self.getAutonomousLeftBlue)
+        self.chosenAuto.setDefaultOption("left blue", self.getAutonomousLeftBlue)
         self.chosenAuto.addOption("left red", self.getAutonomousLeftRed)
         wpilib.SmartDashboard.putData("Chosen Auto", self.chosenAuto)
 
     def getAutonomousLeftBlue(self):
         setStartPose = ResetXY(x=0.783, y=6.686, headingDegrees=+60, drivetrain=self.robotDrive)
-        driveForward = commands2.RunCommand(lambda: self.robotDrive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robotDrive)
+        driveForward = commands2.RunCommand(lambda: self.robotDrive.arcadeDrive(1.0, 0.0), self.robotDrive)
         stop = commands2.InstantCommand(lambda: self.robotDrive.arcadeDrive(0, 0))
 
         command = setStartPose.andThen(driveForward.withTimeout(1.0)).andThen(stop)
@@ -105,7 +104,7 @@ class RobotContainer:
 
     def getAutonomousLeftRed(self):
         setStartPose = ResetXY(x=15.777, y=4.431, headingDegrees=-120, drivetrain=self.robotDrive)
-        driveForward = commands2.RunCommand(lambda: self.robotDrive.arcadeDrive(xSpeed=1.0, rot=0.0), self.robotDrive)
+        driveForward = commands2.RunCommand(lambda: self.robotDrive.arcadeDrive(1.0, 0.0), self.robotDrive)
         stop = commands2.InstantCommand(lambda: self.robotDrive.arcadeDrive(0, 0))
 
         command = setStartPose.andThen(driveForward.withTimeout(2.0)).andThen(stop)

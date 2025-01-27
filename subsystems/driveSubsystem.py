@@ -33,8 +33,8 @@ class DriveSubsystem(Subsystem):
                  usePIDController=True,
                  l1MotorInverted=False,
                  l2MotorInverted=False,
-                 r1MotorInverted=False,
-                 r2MotorInverted=False
+                 r1MotorInverted=True,
+                 r2MotorInverted=True
     ):
         super().__init__()
 
