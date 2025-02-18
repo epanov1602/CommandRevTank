@@ -12,7 +12,7 @@ from wpimath.geometry import Pose2d
 import wpilib
 
 from commands2 import InstantCommand, RunCommand, Command
-from commands2.button import JoystickButton
+from commands2.button import CommandGenericHID
 import commands2
 
 from subsystems.driveSubsystem import DriveSubsystem
@@ -35,7 +35,7 @@ class RobotContainer:
         self.robotDrive = DriveSubsystem()
 
         # The driver's controller.
-        self.driverController = XboxController(constants.kDriverControllerPort)
+        self.driverController = CommandGenericHID(constants.kDriverControllerPort)
 
         # Configure the button bindings
         self.configureButtons()
@@ -44,24 +44,11 @@ class RobotContainer:
         # Configure default subsystems
         # Set the default drive command to split-stick arcade drive
         self.robotDrive.setDefaultCommand(ArcadeDrive(
-            lambda: -self.driverController.getLeftY(),
-            lambda: -self.driverController.getLeftX(),
+            lambda: -self.driverController.getRawAxis(XboxController.Axis.kLeftY),
+            lambda: -self.driverController.getRawAxis(XboxController.Axis.kLeftX),
             self.robotDrive,
             assumeManualInput=True,
         ))
-
-        # Another way to do it would be:
-        #self.robotDrive.setDefaultCommand(
-        #    # A split-stick arcade command, with forward/backward controlled by the left
-        #    # hand, and turning controlled by the right.
-        #    RunCommand(
-        #        lambda: self.robotDrive.arcadeDrive(
-        #            -self.driverController.getLeftY(),
-        #            -self.driverController.getLeftX(),
-        #        ),
-        #        self.robotDrive,
-        #    )
-        #)
 
     def configureButtons(self):
         """
@@ -71,11 +58,11 @@ class RobotContainer:
         """
 
         # example 1: reset odometry when the "left bumper" is clicked
-        leftBumper = JoystickButton(self.driverController, XboxController.Button.kLeftBumper)
+        leftBumper = self.driverController.button(XboxController.Button.kLeftBumper)
         leftBumper.onTrue(ResetXY(0.0, 0.0, 0.0, drivetrain=self.robotDrive))
 
         # example 2: drive at half speed when the "right bumper" button is held
-        rightBumper = JoystickButton(self.driverController, XboxController.Button.kRightBumper)
+        rightBumper = self.driverController.button(XboxController.Button.kRightBumper)
         rightBumper.onTrue(InstantCommand(lambda: self.robotDrive.setMaxOutput(0.5)))
         rightBumper.onFalse(InstantCommand(lambda: self.robotDrive.setMaxOutput(1)))
 
