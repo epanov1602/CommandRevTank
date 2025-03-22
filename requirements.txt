@@ -1,5 +1,2 @@
-wpilib==2025.2.1
 robotpy==2025.2.1.0
-robotpy-commands-v2
-robotpy-rev
-robotpy-navx
+certifi
