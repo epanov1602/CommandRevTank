@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import typing
 import commands2
-from subsystems.driveSubsystem import DriveSubsystem
+from subsystems.drivesubsystem import DriveSubsystem
 
 
 class ArcadeDrive(commands2.Command):

@@ -30,6 +30,7 @@ kRightEncoderSign = -1  # reversed
 # In meters, distance between wheels on each side of robot.
 kTrackWidthMeters = 0.69
 kDriveKinematics = DifferentialDriveKinematics(kTrackWidthMeters)
+kDriveSpeedAtMaxRPM = 5.0  # meters per second
 
 # Encoder counts per revolution/rotation.
 kEncoderCPR = 1024
@@ -38,6 +39,8 @@ kWheelDiameterMeters = 0.15
 # Please calibrate to your robot
 kEncoderPositionConversionFactor = 0.7
 
+# Gyro config
+kGyroReversed = -1   # make this +1 if not inverted
 
 class AutoConstants:
     kUseSqrtControl = True  # compatibility with commands from https://github.com/epanov1602/CommandRevSwerve/blob/main/docs/Command_Driving_Aiming.md

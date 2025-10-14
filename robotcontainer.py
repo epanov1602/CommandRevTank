@@ -15,11 +15,14 @@ from commands2 import InstantCommand, RunCommand, Command
 from commands2.button import CommandGenericHID
 import commands2
 
-from subsystems.driveSubsystem import DriveSubsystem
+from commands.trajectory import JerkyTrajectory
+from subsystems.drivesubsystem import DriveSubsystem, BadSimPhysics
 from commands.arcadedrive import ArcadeDrive
 from commands.reset_xy import ResetXY
 
 import constants
+from subsystems.limelight_camera import LimelightCamera
+from subsystems.limelight_localizer import LimelightLocalizer
 
 
 class RobotContainer:
@@ -30,15 +33,23 @@ class RobotContainer:
     subsystems, subsystems, and button mappings) should be declared here.
     """
 
-    def __init__(self):
+    def __init__(self, robot):
         # The robot's subsystems
         self.robotDrive = DriveSubsystem()
+        self.limelightLocalizer = LimelightLocalizer(self.robotDrive)
+
+        #self.frontCamera = LimelightCamera("limelight-front")
+
+        #self.limelightLocalizer.addCamera(
+        #    self.frontCamera,
+        #    cameraPoseOnRobot=Translation3d(x=0.40, y=-0.15, z=0.5),
+        #    cameraHeadingOnRobot=Rotation2d.fromDegrees(0.0))
 
         # The driver's controller.
         self.driverController = CommandGenericHID(constants.kDriverControllerPort)
 
         # Configure the button bindings
-        self.configureButtons()
+        self.configureButtonBindings()
         self.configureAutos()
 
         # Configure default subsystems
@@ -50,21 +61,51 @@ class RobotContainer:
             assumeManualInput=True,
         ))
 
-    def configureButtons(self):
+        if commands2.TimedCommandRobot.isSimulation():
+            self.robotDrive.simPhysics = BadSimPhysics(self.robotDrive, robot)
+
+    def configureButtonBindings(self):
         """
         Use this method to define your button->command mappings. Buttons can be created by
         instantiating a GenericHID or one of its subclasses (Joystick or XboxController),
         and then calling passing it to a JoystickButton.
         """
 
-        # example 1: reset odometry when the "left bumper" is clicked
-        leftBumper = self.driverController.button(XboxController.Button.kLeftBumper)
-        leftBumper.onTrue(ResetXY(0.0, 0.0, 0.0, drivetrain=self.robotDrive))
+        # example 2: when "POV-up" button pressed, reset robot field position to "facing North"
+        resetFacingNorthCommand = ResetXY(x=1.0, y=4.0, headingDegrees=0, drivetrain=self.robotDrive)
+        povUpButton = self.driverController.povUp()
+        povUpButton.whileTrue(resetFacingNorthCommand)
 
-        # example 2: drive at half speed when the "right bumper" button is held
-        rightBumper = self.driverController.button(XboxController.Button.kRightBumper)
-        rightBumper.onTrue(InstantCommand(lambda: self.robotDrive.setMaxOutput(0.5)))
-        rightBumper.onFalse(InstantCommand(lambda: self.robotDrive.setMaxOutput(1)))
+        # example 3: when "POV-down" is pressed, reset robot field position to "facing South"
+        resetFacingSouthCommand = ResetXY(x=7.0, y=4.0, headingDegrees=180, drivetrain=self.robotDrive)
+        povDownButton = self.driverController.povDown()
+        povDownButton.whileTrue(resetFacingSouthCommand)
+
+        # example 4: robot drives this trajectory command when "A" button is pressed
+        trajectoryCommand1 = JerkyTrajectory(
+            drivetrain=self.robotDrive,
+            speed=+1.0,
+            waypoints=[
+                # format: (x, y, heading)
+                (1.0, 7.0, -54),  # start at left feeding station: x=1.0, y=7.0, heading=-54 degrees
+                (1.25, 6.75, -54),  # next waypoint
+                (1.5, 6.50, -54),  # next waypoint
+                (1.9, 6.0, -54),  # next waypoint
+                (1.9, 4.0, 0),  # next waypoint
+                (2.2, 4.0, 0),  # next waypoint
+                (2.7, 4.0, 0),  # next waypoint
+            ],
+            endpoint=(3.2, 4.0, 0),  # end point at the reef facing North
+            flipIfRed=False,  # if you want the trajectory to flip when team is red, set =True
+            stopAtEnd=True,  # to keep driving onto next command, set =False
+        )
+        aButton = self.driverController.button(XboxController.Button.kA)
+        aButton.whileTrue(trajectoryCommand1)  # while "A" button is pressed, keep running trajectoryCommand1
+
+        # example 5: and when "B" button is pressed, drive the reversed trajectory
+        reversedTrajectoryCommand1 = trajectoryCommand1.reversed()
+        bButton = self.driverController.button(XboxController.Button.kB)
+        bButton.whileTrue(reversedTrajectoryCommand1)  # while "B" button is pressed, keep running this command
 
 
     def getAutonomousCommand(self) -> commands2.Command:

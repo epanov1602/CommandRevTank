@@ -3,12 +3,13 @@
 # Open Source Software; you can modify and/or share it under the terms of
 # the WPILib BSD license file in the root directory of this project.
 #
+import math
 
 from commands2 import Subsystem
 
 from wpilib import MotorControllerGroup, ADXRS450_Gyro
 from wpilib.drive import DifferentialDrive
-from wpilib import SmartDashboard, Field2d
+from wpilib import SmartDashboard, Field2d, RobotBase, Timer
 
 from wpimath.kinematics import DifferentialDriveOdometry, DifferentialDriveWheelSpeeds
 from wpimath.geometry import Rotation2d, Pose2d, Translation2d
@@ -37,6 +38,9 @@ class DriveSubsystem(Subsystem):
                  r2MotorInverted=True
     ):
         super().__init__()
+
+        self.desiredLeftVelocity = 0.0
+        self.desiredRightVelocity = 0.0
 
         # The motors on the left side of the drive.
         self.motorL1 = rev.SparkMax(constants.kLeftMotor1CAN, rev.SparkMax.MotorType.kBrushless)
@@ -108,7 +112,11 @@ class DriveSubsystem(Subsystem):
         SmartDashboard.setDefaultNumber("driveMaxSpeedMult", 1.0)
         SmartDashboard.setDefaultNumber("driveMaxAccMult", 1.0)
 
+        self.simPhysics = None
+
     def stop(self):
+        self.desiredLeftVelocity = 0
+        self.desiredRightVelocity = 0
         if self.drive:
             self.drive.stopMotor()
         else:
@@ -116,6 +124,9 @@ class DriveSubsystem(Subsystem):
             self.rightPIDController.setReference(0, rev.SparkBase.ControlType.kVelocity)
 
     def periodic(self):
+        if self.simPhysics is not None:
+            self.simPhysics.periodic()
+
         # Update the odometry in the periodic block
         pose = self.odometry.update(
             self.gyro.getRotation2d(),
@@ -175,21 +186,23 @@ class DriveSubsystem(Subsystem):
         if rot < -1:
             rot = -1
 
+        speedLimit = max((0, 1 - abs(rot)))
+        if fwd > speedLimit:
+            fwd = speedLimit
+        if fwd < -speedLimit:
+            fwd = -speedLimit
+        # ^^ when asked to rotate at speed 0.6, we can only drive forward at speedLimit=1-0.6=0.4
+
+        self.desiredRightVelocity = (fwd + rot) * DrivetrainConstants.maxRPM
+        self.desiredLeftVelocity = (fwd - rot) * DrivetrainConstants.maxRPM
+
         if self.drive:
             # use basic DifferentialDrive and don't take advantage of low-level Rev PID controller
             self.drive.arcadeDrive(fwd, rot)
         else:
             # use Rev PID control for better speed and acceleration
-            # (but when asked to rotate at speed 0.6, we can only drive forward at speedLimit=1-0.6=0.4)
-            speedLimit = max((0, 1 - abs(rot)))
-            if fwd > speedLimit:
-                fwd = speedLimit
-            if fwd < -speedLimit:
-                fwd = -speedLimit
-            right = (fwd + rot) * DrivetrainConstants.maxRPM
-            left = (fwd - rot) * DrivetrainConstants.maxRPM
-            self.leftPIDController.setReference(left, rev.SparkBase.ControlType.kVelocity)
-            self.rightPIDController.setReference(right, rev.SparkBase.ControlType.kVelocity)
+            self.leftPIDController.setReference(self.desiredLeftVelocity, rev.SparkBase.ControlType.kVelocity)
+            self.rightPIDController.setReference(self.desiredRightVelocity, rev.SparkBase.ControlType.kVelocity)
 
     def getAverageEncoderDistance(self):
         """Gets the average distance of the two encoders."""
@@ -216,7 +229,7 @@ class DriveSubsystem(Subsystem):
 
     def getTurnRate(self):
         """Returns the turn rate of the robot."""
-        return -self.gyro.getRate()
+        return self.gyro.getRate() * constants.kGyroReversed
 
 
 def _getFollowMotorConfig(leadCanID, inverted):
@@ -240,3 +253,44 @@ def _getLeadMotorConfig(
     config.closedLoop.velocityFF(DrivetrainConstants.initialFF)
     config.closedLoop.outputRange(-1, +1)
     return config
+
+
+class BadSimPhysics(object):
+    """
+    this is the wrong way to do it, it does not scale!!!
+    the right way is shown here: https://github.com/robotpy/examples/blob/main/Physics/src/physics.py
+    and documented here: https://robotpy.readthedocs.io/projects/pyfrc/en/stable/physics.html
+    (but for a swerve drive it will take some work to add correctly)
+    """
+    def __init__(self, drivetrain: DriveSubsystem, robot: RobotBase):
+        self.drivetrain = drivetrain
+        self.robot = robot
+        self.t = 0
+
+    def periodic(self):
+        past = self.t
+        self.t = Timer.getFPGATimestamp()
+        if past == 0:
+            return  # it was first time
+
+        dt = self.t - past
+        if self.robot.isEnabled():
+            drivetrain = self.drivetrain
+            toDriveSpeed = constants.kDriveSpeedAtMaxRPM / DrivetrainConstants.maxRPM
+
+            states = DifferentialDriveWheelSpeeds(
+                left=drivetrain.desiredLeftVelocity * toDriveSpeed,
+                right=drivetrain.desiredRightVelocity * toDriveSpeed,
+            )
+            speeds = constants.kDriveKinematics.toChassisSpeeds(states)
+
+            dx = speeds.vx * dt
+            dy = speeds.vy * dt
+
+            heading = drivetrain.getHeading()
+            trans = Translation2d(dx, dy).rotateBy(heading)
+            rot = (speeds.omega * 180 / math.pi) * dt
+
+            g = drivetrain.gyro
+            g.setAngleAdjustment(g.getAngleAdjustment() + rot * constants.kGyroReversed)
+            drivetrain.adjustOdometry(trans, Rotation2d())

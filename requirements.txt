@@ -1,2 +1,2 @@
-robotpy==2025.2.1.0
+robotpy
 certifi
