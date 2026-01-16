@@ -6,6 +6,7 @@
 import math
 
 from commands2 import Subsystem
+from rev import ResetMode, PersistMode
 
 from wpilib import MotorControllerGroup, ADXRS450_Gyro
 from wpilib.drive import DifferentialDrive
@@ -46,27 +47,27 @@ class DriveSubsystem(Subsystem):
         self.motorL1 = rev.SparkMax(constants.kLeftMotor1CAN, rev.SparkMax.MotorType.kBrushless)
         self.motorL1.configure(
             _getLeadMotorConfig(l1MotorInverted, constants.kEncoderPositionConversionFactor),
-            rev.SparkBase.ResetMode.kResetSafeParameters,
-            rev.SparkBase.PersistMode.kPersistParameters)
+            ResetMode.kResetSafeParameters,
+            PersistMode.kPersistParameters)
 
         self.motorL2 = rev.SparkMax(constants.kLeftMotor2CAN, rev.SparkMax.MotorType.kBrushless)
         self.motorL2.configure(
             _getFollowMotorConfig(constants.kLeftMotor1CAN, l2MotorInverted != l1MotorInverted),
-            rev.SparkBase.ResetMode.kResetSafeParameters,
-            rev.SparkBase.PersistMode.kPersistParameters)
+            ResetMode.kResetSafeParameters,
+            PersistMode.kPersistParameters)
 
         # The motors on the right side of the drive.
         self.motorR1 = rev.SparkMax(constants.kRightMotor1CAN, rev.SparkMax.MotorType.kBrushless)
         self.motorR1.configure(
             _getLeadMotorConfig(r1MotorInverted, constants.kEncoderPositionConversionFactor),
-            rev.SparkBase.ResetMode.kResetSafeParameters,
-            rev.SparkBase.PersistMode.kPersistParameters)
+            ResetMode.kResetSafeParameters,
+            PersistMode.kPersistParameters)
 
         self.motorR2 = rev.SparkMax(constants.kRightMotor2CAN, rev.SparkMax.MotorType.kBrushless)
         self.motorR2.configure(
             _getFollowMotorConfig(constants.kRightMotor1CAN, r2MotorInverted != r1MotorInverted),
-            rev.SparkBase.ResetMode.kResetSafeParameters,
-            rev.SparkBase.PersistMode.kPersistParameters)
+            ResetMode.kResetSafeParameters,
+            PersistMode.kPersistParameters)
 
         if usePIDController:
             # do not use basic differential drive, take advantage of low-level PID control from Rev
